@@ -1,17 +1,18 @@
 [package]
-name = "cognition-ss-native"
-version = "0.1.0"
+name = "xsheet-native"
+version = "2.1.0"
 edition = "2021"
-description = "Cognitience SS — native Windows host (WebView2 + local Rust backend)"
+description = "XSheet — native system WebView host with local Rust backend"
 license = "MIT"
-authors = ["Cognitience"]
+authors = ["XSheet"]
 
 [[bin]]
-name = "cognition-ss-native"
+name = "xsheet-native"
 path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
+rand = "0.8"
 dirs = "6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 tao = "0.32"

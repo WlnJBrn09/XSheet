@@ -1,11 +1,11 @@
-# Package Cognitience SS as a portable native Windows folder + zip.
+# Package XSheet as a portable native Windows folder + zip.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 $pkg = Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json
 $version = $pkg.version
-$product = "CognitienceSS"
+$product = "XSheet"
 $outName = "${product}_v${version}_win"
 $dist = Join-Path $root "dist"
 $stage = Join-Path $dist $outName
@@ -20,8 +20,8 @@ New-Item -ItemType Directory -Force -Path $stage | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $stage "backend") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $stage "build") | Out-Null
 
-Copy-Item (Join-Path $root "native-host\target\release\cognition-ss-native.exe") (Join-Path $stage "CognitienceSS.exe")
-Copy-Item (Join-Path $root "target\release\cognition-ss.exe") (Join-Path $stage "backend\cognition-ss.exe")
+Copy-Item (Join-Path $root "native-host\target\release\xsheet-native.exe") (Join-Path $stage "XSheet.exe")
+Copy-Item (Join-Path $root "target\release\xsheet.exe") (Join-Path $stage "backend\xsheet.exe")
 Copy-Item -Recurse (Join-Path $root "static") (Join-Path $stage "static")
 if (Test-Path (Join-Path $root "build\icon.ico")) {
   Copy-Item (Join-Path $root "build\icon.ico") (Join-Path $stage "build\icon.ico")

@@ -624,7 +624,7 @@
 
   function setTitle(raw) {
     const title = (raw || '').trim() || 'Untitled spreadsheet';
-    document.title = `${title} — Cognition SS`;
+    document.title = `${title} — XSheet`;
   }
 
   function setZoom(level, { quiet = false } = {}) {
@@ -1376,6 +1376,7 @@
       name: s.name,
       data: s.data,
       styles: s.styles || {},
+      charts: s.charts || [],
     }));
   }
 
@@ -1386,6 +1387,8 @@
       sheets: payloadSheets(),
       active_sheet: activeSheet,
       starred,
+      source_path: activeFilePath,
+      source_format: activeFilePath ? (activeFilePath.split('.').pop() || '').toLowerCase() : null,
     };
     try {
       let res;
@@ -1437,10 +1440,12 @@
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = name;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(a.href);
-      setStatus('Saved ' + name);
-      await saveWorkbookLocal({ quiet: true });
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      const saved = await saveWorkbookLocal({ quiet: true });
+      if (saved) setStatus('Exported ' + name);
     } catch (e) {
       setStatus(String(e.message || e), 'error');
     }
@@ -1455,7 +1460,7 @@
       name: s.name || 'Sheet1',
       data: normalizeGrid(s.data),
       styles: s.styles || {},
-      charts: [],
+      charts: s.charts || [],
     }));
     if (!sheets.length) sheets = [emptySheet('Sheet1')];
     activeSheet = Math.min(opened.active_sheet || 0, sheets.length - 1);
@@ -1490,6 +1495,8 @@
 
   async function openPath(path) {
     commitEditor();
+    clearTimeout(saveTimer);
+    if (dirty && !(await saveWorkbookLocal({ quiet: true }))) return;
     setStatus('Opening…', 'saving');
     try {
       const res = await fetch(`${API}/files/open`, {
@@ -1512,6 +1519,8 @@
 
   async function openSavedDocument(id) {
     commitEditor();
+    clearTimeout(saveTimer);
+    if (dirty && !(await saveWorkbookLocal({ quiet: true }))) return;
     setStatus('Loading…', 'saving');
     try {
       const res = await fetch(`${API}/documents/${id}`);
@@ -1525,7 +1534,7 @@
         name: s.name || 'Sheet1',
         data: normalizeGrid(s.data),
         styles: s.styles || {},
-        charts: [],
+        charts: s.charts || [],
       }));
       if (!sheets.length) sheets = [emptySheet('Sheet1')];
       activeSheet = Math.min(doc.active_sheet || 0, sheets.length - 1);
@@ -1545,6 +1554,8 @@
 
   async function newDocument() {
     commitEditor();
+    clearTimeout(saveTimer);
+    if (dirty && !(await saveWorkbookLocal({ quiet: true }))) return;
     docId = null;
     activeFilePath = null;
     sheets = [emptySheet('Sheet1')];
@@ -1564,6 +1575,9 @@
   }
 
   async function importFiles(fileList) {
+    commitEditor();
+    clearTimeout(saveTimer);
+    if (dirty && !(await saveWorkbookLocal({ quiet: true }))) return;
     for (const file of fileList) {
       const fd = new FormData();
       fd.append('file', file, file.name);
@@ -2096,7 +2110,7 @@
     const next = cur === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     try {
-      localStorage.setItem('cognition-ss-theme', next);
+      localStorage.setItem('xsheet-theme', next);
     } catch {
       /* ignore */
     }
@@ -2125,12 +2139,29 @@
     if (e.dataTransfer?.files?.length) importFiles(e.dataTransfer.files);
   });
 
-  if (window.CognitionLiquidGlass?.attach) {
-    window.CognitionLiquidGlass.attach({ scrollEl: gridViewport });
+  if (window.XSuiteLiquidGlass?.attach) {
+    window.XSuiteLiquidGlass.attach({ scrollEl: gridViewport });
   }
 
   // Boot
   applyZoom();
   loadFileList();
   newDocument();
+  const launchToken = new URLSearchParams(window.location.search).get('launch');
+  if (launchToken) {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/files/launch?token=` + encodeURIComponent(launchToken));
+        const opened = await res.json();
+        if (!res.ok) throw new Error(opened.error || 'Could not open launch file');
+        applyOpened(opened);
+        activeFilePath = null;
+        docId = null;
+        await saveWorkbookLocal({ quiet: true, create: true });
+        setStatus('Opened ' + opened.name);
+      } catch (e) {
+        setStatus(String(e.message || e), 'error');
+      }
+    })();
+  }
 })();

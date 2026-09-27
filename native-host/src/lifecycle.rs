@@ -7,13 +7,13 @@ use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// Product identity for Cognitience SS native host.
-pub const PRODUCT_NAME: &str = "Cognitience SS";
-pub const BACKEND_STEM: &str = "cognition-ss";
+/// Product identity for XSheet native host.
+pub const PRODUCT_NAME: &str = "XSheet";
+pub const BACKEND_STEM: &str = "xsheet";
 pub const DEFAULT_PORT: u16 = 8788;
-pub const DATA_DIR_NAME: &str = "cognition-ss-data";
-pub const WINDOW_TITLE: &str = "Cognitience SS";
-pub const APP_USER_MODEL_ID: &str = "com.cognitience.ss";
+pub const DATA_DIR_NAME: &str = "xsheet-data";
+pub const WINDOW_TITLE: &str = "XSheet";
+pub const APP_USER_MODEL_ID: &str = "com.xsheet.app";
 
 pub fn backend_exe_name() -> String {
     if cfg!(windows) {
@@ -45,7 +45,7 @@ pub fn resolve_static_dir(app_root: &Path, packaged: bool) -> PathBuf {
     app_root.join("static")
 }
 
-/// Data directory under a platform user-data base (e.g. `%APPDATA%/cognitience-wp`).
+/// Data directory under this product’s platform user-data base.
 pub fn resolve_data_dir(user_data_base: &Path) -> PathBuf {
     user_data_base.join(DATA_DIR_NAME)
 }
@@ -55,23 +55,19 @@ pub fn default_user_data_base() -> PathBuf {
     dirs::data_local_dir()
         .or_else(dirs::data_dir)
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("cognitience-ss")
+        .join("xsheet")
 }
 
 /// Build the environment map the backend expects (same contract as Electron).
-pub fn build_backend_env(
-    port: u16,
-    static_dir: &Path,
-    data_dir: &Path,
-) -> HashMap<String, String> {
+pub fn build_backend_env(port: u16, static_dir: &Path, data_dir: &Path) -> HashMap<String, String> {
     let mut env = HashMap::new();
     env.insert("PORT".into(), port.to_string());
     env.insert(
-        "COGNITION_STATIC_DIR".into(),
+        "XSHEET_STATIC_DIR".into(),
         static_dir.to_string_lossy().into_owned(),
     );
     env.insert(
-        "COGNITION_DATA_DIR".into(),
+        "XSHEET_DATA_DIR".into(),
         data_dir.to_string_lossy().into_owned(),
     );
     if std::env::var_os("RUST_LOG").is_none() {
@@ -97,9 +93,8 @@ pub fn probe_health(port: u16) -> Result<u16, String> {
     stream
         .set_write_timeout(Some(Duration::from_secs(2)))
         .map_err(|e| e.to_string())?;
-    let req = format!(
-        "GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
-    );
+    let req =
+        format!("GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
     stream
         .write_all(req.as_bytes())
         .map_err(|e| e.to_string())?;
@@ -251,18 +246,14 @@ mod tests {
 
     #[test]
     fn build_backend_env_sets_contract_keys() {
-        let env = build_backend_env(
-            8788,
-            Path::new("C:\\ss\\static"),
-            Path::new("C:\\ss\\data"),
-        );
+        let env = build_backend_env(8788, Path::new("C:\\ss\\static"), Path::new("C:\\ss\\data"));
         assert_eq!(env.get("PORT").map(String::as_str), Some("8788"));
         assert_eq!(
-            env.get("COGNITION_STATIC_DIR").map(String::as_str),
+            env.get("XSHEET_STATIC_DIR").map(String::as_str),
             Some("C:\\ss\\static")
         );
         assert_eq!(
-            env.get("COGNITION_DATA_DIR").map(String::as_str),
+            env.get("XSHEET_DATA_DIR").map(String::as_str),
             Some("C:\\ss\\data")
         );
     }
@@ -290,11 +281,8 @@ mod tests {
     #[test]
     fn resolve_app_root_finds_static_walking_up() {
         let dir = tempdir().unwrap();
-        let product = dir.path().join("cognition-ss");
-        let nested = product
-            .join("native-host")
-            .join("target")
-            .join("release");
+        let product = dir.path().join("xsheet");
+        let nested = product.join("native-host").join("target").join("release");
         fs::create_dir_all(&nested).unwrap();
         fs::create_dir_all(product.join("static")).unwrap();
         fs::write(product.join("static").join("index.html"), b"<html>").unwrap();
@@ -306,8 +294,8 @@ mod tests {
     #[test]
     fn product_constants_are_ss() {
         assert_eq!(DEFAULT_PORT, 8788);
-        assert_eq!(PRODUCT_NAME, "Cognitience SS");
-        assert_eq!(BACKEND_STEM, "cognition-ss");
-        assert_eq!(DATA_DIR_NAME, "cognition-ss-data");
+        assert_eq!(PRODUCT_NAME, "XSheet");
+        assert_eq!(BACKEND_STEM, "xsheet");
+        assert_eq!(DATA_DIR_NAME, "xsheet-data");
     }
 }

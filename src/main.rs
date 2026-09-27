@@ -1,4 +1,4 @@
-//! Cognition SS — local-first spreadsheet backend.
+//! XSheet — local-first spreadsheet backend.
 //! Serves the static UI and opens xlsx / csv / parquet from the user's Documents folder.
 
 mod documents;
@@ -15,14 +15,14 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
 use documents::{Document, DocumentMeta, DocumentStore, SaveDocument};
 use files::{
-    list_documents_folder, open_bytes, open_file, read_raw_file, resolve_documents_dir, OpenPathBody,
+    list_documents_folder, open_bytes, open_file, read_raw_file, resolve_documents_dir,
+    OpenPathBody,
 };
 
 #[derive(Clone)]
@@ -61,10 +61,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/documents", get(list_documents).post(create_document))
         .route(
             "/documents/{id}",
-            get(get_document).put(update_document).delete(delete_document),
+            get(get_document)
+                .put(update_document)
+                .delete(delete_document),
         )
         .route("/files", get(list_files))
         .route("/files/open", post(open_path))
+        .route("/files/launch", get(open_launch_file))
         .route("/files/import", post(import_upload))
         .route("/files/raw", get(serve_raw_file))
         .route("/files/docs-dir", get(docs_dir_info))
@@ -73,12 +76,6 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .nest("/api", api)
         .fallback_service(spa)
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
@@ -87,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8788);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    tracing::info!("Cognition SS listening on http://{addr}");
+    tracing::info!("XSheet listening on http://{addr}");
     tracing::info!("Local-only mode — no cloud endpoints");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
@@ -96,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn resolve_data_dir() -> PathBuf {
-    if let Ok(p) = std::env::var("COGNITION_DATA_DIR") {
+    if let Ok(p) = std::env::var("XSHEET_DATA_DIR") {
         return PathBuf::from(p);
     }
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -104,7 +101,7 @@ fn resolve_data_dir() -> PathBuf {
 }
 
 fn resolve_static_dir() -> PathBuf {
-    if let Ok(p) = std::env::var("COGNITION_STATIC_DIR") {
+    if let Ok(p) = std::env::var("XSHEET_STATIC_DIR") {
         return PathBuf::from(p);
     }
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -123,7 +120,7 @@ fn resolve_static_dir() -> PathBuf {
 async fn health(State(state): State<AppState>) -> impl IntoResponse {
     Json(serde_json::json!({
         "ok": true,
-        "app": "Cognition SS",
+        "app": "XSheet",
         "mode": "local",
         "cloud": false,
         "documents_dir": state.docs_dir.display().to_string(),
@@ -137,7 +134,9 @@ async fn docs_dir_info(State(state): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-async fn list_files(State(state): State<AppState>) -> Result<Json<Vec<files::FileEntry>>, ApiError> {
+async fn list_files(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<files::FileEntry>>, ApiError> {
     let list = list_documents_folder(&state.docs_dir).map_err(ApiError::from)?;
     Ok(Json(list))
 }
@@ -148,6 +147,44 @@ async fn open_path(
 ) -> Result<Json<files::OpenedFile>, ApiError> {
     let opened = open_file(&state.docs_dir, &body.path).map_err(ApiError::from)?;
     Ok(Json(opened))
+}
+
+#[derive(serde::Deserialize)]
+struct LaunchQuery {
+    token: String,
+}
+
+async fn open_launch_file(
+    Query(query): Query<LaunchQuery>,
+) -> Result<Json<files::OpenedFile>, ApiError> {
+    let token =
+        std::env::var("XSHEET_LAUNCH_TOKEN").map_err(|_| ApiError::bad("No launch file".into()))?;
+    if query.token != token {
+        return Err(ApiError::bad("Invalid launch token".into()));
+    }
+    let path = PathBuf::from(
+        std::env::var("XSHEET_LAUNCH_FILE").map_err(|_| ApiError::bad("No launch file".into()))?,
+    );
+    let metadata = std::fs::metadata(&path).map_err(|e| ApiError::bad(e.to_string()))?;
+    if !metadata.is_file() || metadata.len() > 50 * 1024 * 1024 {
+        return Err(ApiError::bad(
+            "Launch file must be a file under 50 MB".into(),
+        ));
+    }
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| ApiError::bad("Invalid file name".into()))?;
+    let ext = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let title = path.file_stem().and_then(|s| s.to_str()).unwrap_or(name);
+    let bytes = std::fs::read(&path).map_err(|e| ApiError::bad(e.to_string()))?;
+    Ok(Json(
+        open_bytes(name, "", &ext, title, &bytes).map_err(ApiError::from)?,
+    ))
 }
 
 async fn serve_raw_file(
@@ -208,7 +245,10 @@ async fn export_document(Json(body): Json<export::ExportBody>) -> Result<Respons
             .parse()
             .unwrap_or_else(|_| "application/octet-stream".parse().unwrap()),
     );
-    let disp = format!("attachment; filename=\"{}\"", file.filename.replace('"', ""));
+    let disp = format!(
+        "attachment; filename=\"{}\"",
+        file.filename.replace('"', "")
+    );
     res.headers_mut().insert(
         header::CONTENT_DISPOSITION,
         disp.parse()
@@ -217,7 +257,9 @@ async fn export_document(Json(body): Json<export::ExportBody>) -> Result<Respons
     Ok(res)
 }
 
-async fn list_documents(State(state): State<AppState>) -> Result<Json<Vec<DocumentMeta>>, ApiError> {
+async fn list_documents(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<DocumentMeta>>, ApiError> {
     let list = state.store.list().map_err(ApiError::from)?;
     Ok(Json(list))
 }

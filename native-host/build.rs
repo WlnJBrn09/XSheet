@@ -12,10 +12,10 @@ fn main() {
         if ico.is_file() {
             res.set_icon(ico.to_str().expect("ico path utf-8"));
         }
-        res.set("ProductName", "Cognitience SS");
-        res.set("FileDescription", "Cognitience SS — local-first spreadsheet");
-        res.set("CompanyName", "Cognitience");
-        res.set("LegalCopyright", "Cognitience");
+        res.set("ProductName", "XSheet");
+        res.set("FileDescription", "XSheet — local-first spreadsheet");
+        res.set("CompanyName", "XSheet");
+        res.set("LegalCopyright", "XSheet");
         if let Err(e) = res.compile() {
             eprintln!("cargo:warning=winres failed (exe icon may be missing): {e}");
         }

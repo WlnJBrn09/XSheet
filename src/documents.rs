@@ -48,6 +48,9 @@ pub struct Sheet {
     /// Sparse styles keyed by "row,col" (0-based).
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub styles: std::collections::HashMap<String, CellStyle>,
+    /// Chart definitions used by the local editor and JSON export.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub charts: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,7 +175,10 @@ impl DocumentStore {
             .sheets
             .map(normalize_sheets)
             .unwrap_or_else(|| vec![empty_sheet("Sheet1")]);
-        let active = body.active_sheet.unwrap_or(0).min(sheets.len().saturating_sub(1));
+        let active = body
+            .active_sheet
+            .unwrap_or(0)
+            .min(sheets.len().saturating_sub(1));
         let doc = Document {
             id: id.clone(),
             title: sanitize_title(body.title.unwrap_or_else(|| "Untitled spreadsheet".into())),
@@ -201,7 +207,10 @@ impl DocumentStore {
         if let Some(sheets) = body.sheets {
             let sheets = normalize_sheets(sheets);
             // Cap serialized size ~16 MiB.
-            let rough = sheets.iter().map(|s| s.data.len() * s.data.first().map(|r| r.len()).unwrap_or(0) * 8).sum::<usize>();
+            let rough = sheets
+                .iter()
+                .map(|s| s.data.len() * s.data.first().map(|r| r.len()).unwrap_or(0) * 8)
+                .sum::<usize>();
             if rough > 16 * 1024 * 1024 {
                 return Err(StoreError::Io(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
@@ -242,6 +251,7 @@ pub fn empty_sheet(name: &str) -> Sheet {
         name: name.into(),
         data: vec![vec![String::new(); DEFAULT_COLS]; DEFAULT_ROWS],
         styles: std::collections::HashMap::new(),
+        charts: Vec::new(),
     }
 }
 
@@ -264,6 +274,7 @@ pub fn sheet_from_grid(name: &str, grid: Vec<Vec<String>>) -> Sheet {
         name: name.into(),
         data,
         styles: std::collections::HashMap::new(),
+        charts: Vec::new(),
     }
 }
 

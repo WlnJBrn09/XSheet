@@ -17,7 +17,9 @@ use crate::documents::{sheet_from_grid, Sheet};
 /// Extensions shown in the Documents sidebar.
 const LIST_EXT: &[&str] = &["xlsx", "xlsm", "xls", "csv", "tsv", "parquet", "json"];
 /// Also openable via Open/Import.
-const OPEN_EXT: &[&str] = &["xlsx", "xlsm", "xls", "csv", "tsv", "parquet", "json", "cog"];
+const OPEN_EXT: &[&str] = &[
+    "xlsx", "xlsm", "xls", "csv", "tsv", "parquet", "json", "cog",
+];
 
 const MAX_IMPORT_ROWS: usize = 20_000;
 const MAX_IMPORT_COLS: usize = 200;
@@ -69,7 +71,7 @@ impl std::fmt::Display for FileError {
 }
 
 pub fn resolve_documents_dir() -> PathBuf {
-    if let Ok(p) = std::env::var("COGNITION_DOCS_DIR") {
+    if let Ok(p) = std::env::var("XSHEET_DOCS_DIR") {
         return PathBuf::from(p);
     }
     dirs::document_dir().unwrap_or_else(|| {
@@ -138,7 +140,7 @@ fn kind_for_ext(ext: &str) -> &'static str {
         "xlsx" | "xlsm" | "xls" => "excel",
         "csv" | "tsv" => "csv",
         "parquet" => "parquet",
-        "json" | "cog" => "cognition",
+        "json" | "cog" => "xsheet",
         _ => "file",
     }
 }
@@ -206,12 +208,24 @@ pub fn open_bytes(
     if !OPEN_EXT.contains(&ext) {
         return Err(FileError::Unsupported);
     }
-    let sheets = match ext {
-        "csv" => vec![sheet_from_grid("Sheet1", parse_csv(bytes, b',')?)],
-        "tsv" => vec![sheet_from_grid("Sheet1", parse_csv(bytes, b'\t')?)],
-        "xlsx" | "xlsm" | "xls" => parse_excel(bytes)?,
-        "parquet" => vec![sheet_from_grid("Sheet1", parse_parquet(bytes)?)],
-        "json" | "cog" => parse_cognition_json(bytes)?,
+    let (sheets, active_sheet, imported_title) = match ext {
+        "csv" => (
+            vec![sheet_from_grid("Sheet1", parse_csv(bytes, b',')?)],
+            0,
+            None,
+        ),
+        "tsv" => (
+            vec![sheet_from_grid("Sheet1", parse_csv(bytes, b'\t')?)],
+            0,
+            None,
+        ),
+        "xlsx" | "xlsm" | "xls" => (parse_excel(bytes)?, 0, None),
+        "parquet" => (
+            vec![sheet_from_grid("Sheet1", parse_parquet(bytes)?)],
+            0,
+            None,
+        ),
+        "json" | "cog" => parse_xsheet_json(bytes)?,
         _ => return Err(FileError::Unsupported),
     };
 
@@ -219,14 +233,37 @@ pub fn open_bytes(
         name: name.into(),
         path: rel.into(),
         ext: ext.into(),
-        title: title.into(),
+        title: imported_title.unwrap_or_else(|| title.into()),
         format: kind_for_ext(ext).into(),
         sheets,
-        active_sheet: 0,
+        active_sheet,
     })
 }
 
 fn parse_csv(bytes: &[u8], delim: u8) -> Result<Vec<Vec<String>>, FileError> {
+    // Excel commonly writes UTF-8 or UTF-16 with a BOM. Decode before CSV
+    // parsing so the first header and non-ASCII data survive import.
+    let decoded = if bytes.starts_with(&[0xff, 0xfe]) || bytes.starts_with(&[0xfe, 0xff]) {
+        let little_endian = bytes[0] == 0xff;
+        if (bytes.len() - 2) % 2 != 0 {
+            return Err(FileError::Other("odd-length UTF-16 CSV".into()));
+        }
+        let units = bytes[2..]
+            .chunks_exact(2)
+            .map(|c| {
+                if little_endian {
+                    u16::from_le_bytes([c[0], c[1]])
+                } else {
+                    u16::from_be_bytes([c[0], c[1]])
+                }
+            })
+            .collect::<Vec<_>>();
+        Some(String::from_utf16(&units).map_err(|e| FileError::Other(format!("UTF-16 CSV: {e}")))?)
+    } else {
+        None
+    };
+    let bytes = decoded.as_ref().map(String::as_bytes).unwrap_or(bytes);
+    let bytes = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(bytes);
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .delimiter(delim)
@@ -268,18 +305,48 @@ fn parse_excel(bytes: &[u8]) -> Result<Vec<Sheet>, FileError> {
             }
         };
         let mut grid: Vec<Vec<String>> = Vec::new();
+        // Calamine's rows start at the occupied range, which need not be A1.
+        // Preserve the worksheet coordinates so B3 is still B3 after import.
+        let (start_row, start_col) = range.start().unwrap_or((0, 0));
+        for _ in 0..(start_row as usize).min(MAX_IMPORT_ROWS) {
+            grid.push(Vec::new());
+        }
         for (ri, row) in range.rows().enumerate() {
-            if ri >= MAX_IMPORT_ROWS {
+            if ri + start_row as usize >= MAX_IMPORT_ROWS {
                 break;
             }
-            let mut out_row = Vec::new();
+            let mut out_row = vec![String::new(); (start_col as usize).min(MAX_IMPORT_COLS)];
             for (ci, cell) in row.iter().enumerate() {
-                if ci >= MAX_IMPORT_COLS {
+                if ci + start_col as usize >= MAX_IMPORT_COLS {
                     break;
                 }
                 out_row.push(cell_to_string(cell));
             }
             grid.push(out_row);
+        }
+        if let Ok(formulas) = workbook.worksheet_formula(&name) {
+            let (formula_row, formula_col) = formulas.start().unwrap_or((0, 0));
+            for (ri, row) in formulas.rows().enumerate() {
+                let dest_row = ri + formula_row as usize;
+                if dest_row >= MAX_IMPORT_ROWS {
+                    break;
+                }
+                for (ci, formula) in row.iter().enumerate() {
+                    let dest_col = ci + formula_col as usize;
+                    if dest_col >= MAX_IMPORT_COLS {
+                        break;
+                    }
+                    if formula.is_empty() {
+                        continue;
+                    }
+                    while grid.len() <= dest_row {
+                        grid.push(Vec::new());
+                    }
+                    let width = grid[dest_row].len().max(dest_col + 1);
+                    grid[dest_row].resize(width, String::new());
+                    grid[dest_row][dest_col] = format!("={formula}");
+                }
+            }
         }
         if grid.is_empty() {
             grid.push(vec![String::new()]);
@@ -305,7 +372,29 @@ fn cell_to_string(cell: &Data) -> String {
                 "FALSE".into()
             }
         }
-        Data::DateTime(dt) => format!("{dt:?}"),
+        Data::DateTime(dt) => {
+            if dt.is_duration() {
+                let seconds = dt.as_duration().map(|d| d.num_seconds()).unwrap_or(0);
+                let sign = if seconds < 0 { "-" } else { "" };
+                let seconds = seconds.abs();
+                format!(
+                    "{sign}{:02}:{:02}:{:02}",
+                    seconds / 3600,
+                    seconds / 60 % 60,
+                    seconds % 60
+                )
+            } else if let Some(value) = dt.as_datetime() {
+                if dt.as_f64() < 1.0 {
+                    value.format("%H:%M:%S").to_string()
+                } else if value.time() == chrono::NaiveTime::MIN {
+                    value.format("%Y-%m-%d").to_string()
+                } else {
+                    value.format("%Y-%m-%d %H:%M:%S").to_string()
+                }
+            } else {
+                format_number(dt.as_f64())
+            }
+        }
         Data::DateTimeIso(s) | Data::DurationIso(s) => s.clone(),
         Data::Error(e) => format!("#{e:?}"),
     }
@@ -421,11 +510,12 @@ fn format_array_fallback(arr: &dyn Array, row: usize) -> String {
     String::new()
 }
 
-fn parse_cognition_json(bytes: &[u8]) -> Result<Vec<Sheet>, FileError> {
+fn parse_xsheet_json(bytes: &[u8]) -> Result<(Vec<Sheet>, usize, Option<String>), FileError> {
     #[derive(Deserialize)]
     struct Doc {
         title: Option<String>,
         sheets: Option<Vec<Sheet>>,
+        active_sheet: Option<usize>,
         /// Alternate: single grid
         data: Option<Vec<Vec<String>>>,
     }
@@ -433,14 +523,19 @@ fn parse_cognition_json(bytes: &[u8]) -> Result<Vec<Sheet>, FileError> {
         .map_err(|e| FileError::Other(format!("invalid json workbook: {e}")))?;
     if let Some(sheets) = doc.sheets {
         if !sheets.is_empty() {
-            return Ok(sheets);
+            let active = doc.active_sheet.unwrap_or(0).min(sheets.len() - 1);
+            return Ok((sheets, active, doc.title));
         }
     }
     if let Some(data) = doc.data {
         let name = doc.title.unwrap_or_else(|| "Sheet1".into());
-        return Ok(vec![sheet_from_grid(&name, data)]);
+        return Ok((vec![sheet_from_grid(&name, data)], 0, None));
     }
-    Ok(vec![sheet_from_grid("Sheet1", vec![vec![String::new()]])])
+    Ok((
+        vec![sheet_from_grid("Sheet1", vec![vec![String::new()]])],
+        0,
+        doc.title,
+    ))
 }
 
 #[allow(dead_code)]
@@ -458,9 +553,7 @@ pub fn mime_for_path(path: &Path) -> &'static str {
     {
         "csv" => "text/csv; charset=utf-8",
         "tsv" => "text/tab-separated-values; charset=utf-8",
-        "xlsx" | "xlsm" => {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        }
+        "xlsx" | "xlsm" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "xls" => "application/vnd.ms-excel",
         "parquet" => "application/vnd.apache.parquet",
         "json" | "cog" => "application/json",
@@ -475,4 +568,22 @@ pub fn read_raw_file(root: &Path, rel: &str) -> Result<(Vec<u8>, &'static str), 
     }
     let data = fs::read(&path).map_err(FileError::Io)?;
     Ok((data, mime_for_path(&path)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use calamine::{ExcelDateTime, ExcelDateTimeType};
+
+    #[test]
+    fn excel_dates_have_readable_values() {
+        let date = Data::DateTime(ExcelDateTime::new(
+            45292.0,
+            ExcelDateTimeType::DateTime,
+            false,
+        ));
+        assert_eq!(cell_to_string(&date), "2024-01-01");
+        let duration = Data::DateTime(ExcelDateTime::new(1.5, ExcelDateTimeType::TimeDelta, false));
+        assert_eq!(cell_to_string(&duration), "36:00:00");
+    }
 }

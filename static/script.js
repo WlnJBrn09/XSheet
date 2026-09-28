@@ -701,7 +701,7 @@
 
   function buildColorPicker(title, onPick, { allowNone = false } = {}) {
     const el = document.createElement('div');
-    el.className = 'picker liquid-glass liquid-glass--heavy hidden';
+    el.className = 'picker hidden';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', title);
 
@@ -1297,14 +1297,14 @@
       case 'xlsx':
       case 'xlsm':
       case 'xls':
-        return 'table';
+        return 'file-xls';
       case 'csv':
       case 'tsv':
-        return 'csv';
+        return 'file-csv';
       case 'parquet':
         return 'database';
       default:
-        return 'draft';
+        return 'file';
     }
   }
 
@@ -1347,7 +1347,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'doc-item' + (d.id === docId ? ' active' : '');
-        btn.innerHTML = `<span class="material-symbols-outlined file-icon">grid_on</span><span class="file-meta"><span class="file-name"></span><span class="file-sub">Saved workbook</span></span>`;
+        btn.innerHTML = `<span class="icon file-icon">grid-four</span><span class="file-meta"><span class="file-name"></span><span class="file-sub">Saved workbook</span></span>`;
         btn.querySelector('.file-name').textContent = d.title || 'Untitled';
         btn.addEventListener('click', () => openSavedDocument(d.id));
         docList.appendChild(btn);
@@ -1362,7 +1362,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'doc-item' + (f.path === activeFilePath ? ' active' : '');
-        btn.innerHTML = `<span class="material-symbols-outlined file-icon">${iconForExt(f.ext)}</span><span class="file-meta"><span class="file-name"></span><span class="file-sub"></span></span>`;
+        btn.innerHTML = `<span class="icon file-icon">${iconForExt(f.ext)}</span><span class="file-meta"><span class="file-name"></span><span class="file-sub"></span></span>`;
         btn.querySelector('.file-name').textContent = f.name;
         btn.querySelector('.file-sub').textContent = `${(f.ext || '').toUpperCase()} · ${formatSize(f.size || 0)}`;
         btn.addEventListener('click', () => openPath(f.path));
@@ -2113,16 +2113,31 @@
     markDirty();
   });
 
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const meta = document.getElementById('meta-theme-color');
+    if (meta) meta.content = theme === 'dark' ? '#0a0a0b' : '#ffffff';
+  }
+
   themeToggle.addEventListener('click', () => {
     const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     const next = cur === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
+    applyTheme(next);
     try {
       localStorage.setItem('xsheet-theme', next);
     } catch {
       /* ignore */
     }
   });
+
+  // Follow the system colour scheme until the user picks a theme.
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('xsheet-theme')) applyTheme(e.matches ? 'dark' : 'light');
+    });
+  } catch {
+    /* ignore */
+  }
 
   document.addEventListener('click', () => closeMenus());
   window.addEventListener('resize', () => {
@@ -2147,9 +2162,6 @@
     if (e.dataTransfer?.files?.length) importFiles(e.dataTransfer.files);
   });
 
-  if (window.XSuiteLiquidGlass?.attach) {
-    window.XSuiteLiquidGlass.attach({ scrollEl: gridViewport });
-  }
 
   // Boot
   applyZoom();

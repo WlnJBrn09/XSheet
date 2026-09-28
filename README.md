@@ -1,6 +1,6 @@
 # XSheet
 
-Local-first spreadsheet with liquid-glass UI and a **Rust** backend.
+Local-first spreadsheet with a CruxOS-styled UI and a **Rust** backend.
 
 ## Desktop app (native)
 

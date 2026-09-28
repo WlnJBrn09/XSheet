@@ -21,34 +21,24 @@
   </script>
   <link rel="icon" type="image/png" href="assets/logo.png"/>
 
-
-
+  <link rel="stylesheet" href="crux.css"/>
 
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <svg class="lg-filter-defs" aria-hidden="true" focusable="false">
-    <defs>
-      <filter id="lg-refract" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency="0.018 0.03" numOctaves="2" seed="3" result="noise"/>
-        <feGaussianBlur in="noise" stdDeviation="0.6" result="softNoise"/>
-        <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="6" xChannelSelector="R" yChannelSelector="G"/>
-      </filter>
-    </defs>
-  </svg>
 
   <input type="file" id="file-open-input" class="sr-only" accept=".xlsx,.xlsm,.xls,.csv,.tsv,.parquet,.json,.cog" multiple/>
 
   <div id="app">
     <!-- Full-height left sidebar (not under the toolbar) -->
-    <aside id="sidebar" class="liquid-glass liquid-glass--medium glass glass-medium" aria-label="Documents">
+    <aside id="sidebar" class="panel panel--muted" aria-label="Documents">
       <div class="sidebar-actions">
         <button type="button" class="sidebar-btn pressable" id="sidebar-new">
-          <span class="material-symbols-outlined" aria-hidden="true">note_add</span>
+          <span class="icon" aria-hidden="true">file-plus</span>
           New Document
         </button>
         <button type="button" class="sidebar-btn pressable" id="sidebar-open">
-          <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+          <span class="icon" aria-hidden="true">folder-open</span>
           Open Document
         </button>
         <div class="export-block">
@@ -64,7 +54,7 @@
       <div class="tabs-head">
         <span id="docs-folder-label">Documents</span>
         <button type="button" class="icon-btn pressable sm" id="refresh-files" title="Refresh file list" aria-label="Refresh">
-          <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+          <span class="icon" aria-hidden="true">arrows-clockwise</span>
         </button>
       </div>
       <div class="file-hint">xlsx · csv · parquet</div>
@@ -72,17 +62,17 @@
     </aside>
 
     <div id="main-col">
-    <header id="header" class="liquid-glass liquid-glass--heavy glass glass-heavy">
+    <header id="header" class="panel">
       <div class="header-top">
         <div class="header-left">
           <button type="button" class="docs-icon-btn pressable" aria-label="XSheet" title="XSheet">
-            <img src="assets/logo.png" alt="XSheet" class="app-logo" width="40" height="40"/>
+            <img src="assets/logo.svg" alt="XSheet" class="app-logo" width="40" height="40"/>
           </button>
           <div class="title-block">
             <div class="title-row">
               <div class="doc-title" id="doc-title" contenteditable="true" spellcheck="false" role="textbox" aria-label="Spreadsheet title">Untitled spreadsheet</div>
               <button type="button" class="icon-btn pressable" id="star-btn" title="Star" aria-label="Star" aria-pressed="false">
-                <span class="material-symbols-outlined icon-star" aria-hidden="true">star</span>
+                <span class="icon icon-star" aria-hidden="true">star</span>
               </button>
               <span class="status-pill" id="status-text" aria-live="polite">Saved locally</span>
             </div>
@@ -90,18 +80,18 @@
         </div>
         <div class="header-actions">
           <button type="button" class="glass-btn pressable" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">
-            <span class="material-symbols-outlined icon-light" aria-hidden="true">dark_mode</span>
-            <span class="material-symbols-outlined icon-dark" aria-hidden="true">light_mode</span>
+            <span class="icon icon-light" aria-hidden="true">moon</span>
+            <span class="icon icon-dark" aria-hidden="true">sun</span>
           </button>
           <div class="save-split">
             <button type="button" class="glass-btn pressable save-main" id="save-btn" title="Save as XLSX (Ctrl+S)" aria-label="Save">
-              <span class="material-symbols-outlined" aria-hidden="true">save</span>
+              <span class="icon" aria-hidden="true">floppy-disk</span>
               Save
             </button>
             <button type="button" class="glass-btn pressable save-caret" id="save-menu-btn" title="Save format" aria-label="Save format options" aria-haspopup="menu" aria-expanded="false">
-              <span class="material-symbols-outlined sm" aria-hidden="true">arrow_drop_down</span>
+              <span class="icon sm" aria-hidden="true">caret-down</span>
             </button>
-            <div id="save-menu" class="glass-menu liquid-glass liquid-glass--heavy hidden" role="menu" aria-label="Save as">
+            <div id="save-menu" class="glass-menu hidden" role="menu" aria-label="Save as">
               <button type="button" class="menu-option" data-save-fmt="xlsx" role="menuitem">Excel (.xlsx) — default</button>
               <button type="button" class="menu-option" data-save-fmt="csv" role="menuitem">CSV (.csv)</button>
               <button type="button" class="menu-option" data-save-fmt="tsv" role="menuitem">TSV (.tsv)</button>
@@ -111,23 +101,23 @@
       </div>
 
       <div class="toolbar-area">
-        <div class="toolbar-pill liquid-glass liquid-glass--light glass glass-light" id="toolbar" role="toolbar" aria-label="Formatting">
+        <div class="toolbar-pill panel panel--muted" id="toolbar" role="toolbar" aria-label="Formatting">
           <div class="toolbar-scroll">
             <button type="button" class="t-icon pressable" id="undo-btn" title="Undo (Ctrl+Z)" aria-label="Undo">
-              <span class="material-symbols-outlined" aria-hidden="true">undo</span>
+              <span class="icon" aria-hidden="true">arrow-counter-clockwise</span>
             </button>
             <button type="button" class="t-icon pressable" id="redo-btn" title="Redo (Ctrl+Y)" aria-label="Redo">
-              <span class="material-symbols-outlined" aria-hidden="true">redo</span>
+              <span class="icon" aria-hidden="true">arrow-clockwise</span>
             </button>
             <button type="button" class="t-icon pressable" id="print-btn" title="Print" aria-label="Print">
-              <span class="material-symbols-outlined" aria-hidden="true">print</span>
+              <span class="icon" aria-hidden="true">printer</span>
             </button>
 
             <div class="v-sep" role="separator" aria-hidden="true"></div>
 
             <div class="tb-wrap">
               <button type="button" class="t-label pressable" id="zoom-btn" title="Zoom (Ctrl+scroll)" aria-haspopup="listbox" aria-expanded="false">100%</button>
-              <div id="zoom-menu" class="glass-menu liquid-glass liquid-glass--heavy hidden" role="listbox" aria-label="Zoom">
+              <div id="zoom-menu" class="glass-menu hidden" role="listbox" aria-label="Zoom">
                 <button type="button" class="menu-option" data-zoom="50">50%</button>
                 <button type="button" class="menu-option" data-zoom="75">75%</button>
                 <button type="button" class="menu-option" data-zoom="90">90%</button>
@@ -149,41 +139,41 @@
             <div class="tb-wrap">
               <button type="button" class="t-label pressable font-drop" id="font-btn" title="Font" aria-haspopup="listbox" aria-expanded="false">
                 <span id="font-label">Inter</span>
-                <span class="material-symbols-outlined sm" aria-hidden="true">arrow_drop_down</span>
+                <span class="icon sm" aria-hidden="true">caret-down</span>
               </button>
-              <div id="font-menu" class="glass-menu liquid-glass liquid-glass--heavy hidden" role="listbox" aria-label="Font family">
+              <div id="font-menu" class="glass-menu hidden" role="listbox" aria-label="Font family">
                 <!-- populated by script.js -->
               </div>
             </div>
 
-            <div class="font-size-box glass-inset" role="group" aria-label="Font size">
+            <div class="font-size-box inset-field" role="group" aria-label="Font size">
               <button type="button" class="t-icon mini pressable" id="fs-minus" title="Decrease font size" aria-label="Decrease font size">
-                <span class="material-symbols-outlined" aria-hidden="true">remove</span>
+                <span class="icon" aria-hidden="true">minus</span>
               </button>
               <input type="text" class="fs-val" id="fs-val" value="10" inputmode="numeric" aria-label="Font size" title="Click to type size"/>
               <button type="button" class="t-icon mini pressable" id="fs-plus" title="Increase font size" aria-label="Increase font size">
-                <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                <span class="icon" aria-hidden="true">plus</span>
               </button>
             </div>
 
             <div class="v-sep" role="separator" aria-hidden="true"></div>
 
             <button type="button" class="t-icon pressable" id="bold-btn" title="Bold (Ctrl+B)" aria-label="Bold" aria-pressed="false">
-              <span class="material-symbols-outlined" aria-hidden="true">format_bold</span>
+              <span class="icon" aria-hidden="true">text-b</span>
             </button>
             <button type="button" class="t-icon pressable" id="italic-btn" title="Italic (Ctrl+I)" aria-label="Italic" aria-pressed="false">
-              <span class="material-symbols-outlined" aria-hidden="true">format_italic</span>
+              <span class="icon" aria-hidden="true">text-italic</span>
             </button>
 
             <div class="tb-wrap">
               <button type="button" class="t-icon pressable color-btn" id="text-color-btn" title="Text color" aria-haspopup="dialog" aria-expanded="false">
-                <span class="material-symbols-outlined" aria-hidden="true">format_color_text</span>
+                <span class="icon" aria-hidden="true">text-a-underline</span>
                 <i class="col-bar" id="text-col-bar" aria-hidden="true"></i>
               </button>
             </div>
             <div class="tb-wrap">
               <button type="button" class="t-icon pressable color-btn" id="fill-color-btn" title="Fill color" aria-haspopup="dialog" aria-expanded="false">
-                <span class="material-symbols-outlined" aria-hidden="true">format_color_fill</span>
+                <span class="icon" aria-hidden="true">paint-bucket</span>
                 <i class="col-bar" id="fill-col-bar" aria-hidden="true"></i>
               </button>
             </div>
@@ -191,13 +181,13 @@
             <div class="v-sep" role="separator" aria-hidden="true"></div>
 
             <button type="button" class="t-icon pressable" id="align-left-btn" title="Align left" aria-label="Align left">
-              <span class="material-symbols-outlined" aria-hidden="true">format_align_left</span>
+              <span class="icon" aria-hidden="true">text-align-left</span>
             </button>
             <button type="button" class="t-icon pressable" id="align-center-btn" title="Align center" aria-label="Align center">
-              <span class="material-symbols-outlined" aria-hidden="true">format_align_center</span>
+              <span class="icon" aria-hidden="true">text-align-center</span>
             </button>
             <button type="button" class="t-icon pressable" id="align-right-btn" title="Align right" aria-label="Align right">
-              <span class="material-symbols-outlined" aria-hidden="true">format_align_right</span>
+              <span class="icon" aria-hidden="true">text-align-right</span>
             </button>
 
             <div class="v-sep" role="separator" aria-hidden="true"></div>
@@ -215,25 +205,25 @@
             <div class="v-sep" role="separator" aria-hidden="true"></div>
 
             <button type="button" class="t-icon pressable" id="link-btn" title="Insert link" aria-label="Insert link">
-              <span class="material-symbols-outlined" aria-hidden="true">link</span>
+              <span class="icon" aria-hidden="true">link</span>
             </button>
 
             <div class="tb-wrap">
               <button type="button" class="t-icon pressable" id="chart-btn" title="Insert chart" aria-haspopup="menu" aria-expanded="false">
-                <span class="material-symbols-outlined" aria-hidden="true">insert_chart</span>
+                <span class="icon" aria-hidden="true">chart-bar</span>
               </button>
-              <div id="chart-menu" class="glass-menu liquid-glass liquid-glass--heavy hidden" role="menu" aria-label="Chart type">
+              <div id="chart-menu" class="glass-menu hidden" role="menu" aria-label="Chart type">
                 <button type="button" class="menu-option" data-chart="pie" role="menuitem">
-                  <span class="material-symbols-outlined" aria-hidden="true">pie_chart</span> Pie chart
+                  <span class="icon" aria-hidden="true">chart-pie-slice</span> Pie chart
                 </button>
                 <button type="button" class="menu-option" data-chart="hbar" role="menuitem">
-                  <span class="material-symbols-outlined" aria-hidden="true">bar_chart</span> Horizontal bars
+                  <span class="icon" aria-hidden="true">chart-bar</span> Horizontal bars
                 </button>
                 <button type="button" class="menu-option" data-chart="vbar" role="menuitem">
-                  <span class="material-symbols-outlined" aria-hidden="true">bar_chart</span> Vertical bars
+                  <span class="icon" aria-hidden="true">chart-bar</span> Vertical bars
                 </button>
                 <button type="button" class="menu-option" data-chart="line" role="menuitem">
-                  <span class="material-symbols-outlined" aria-hidden="true">show_chart</span> Linear
+                  <span class="icon" aria-hidden="true">chart-line</span> Linear
                 </button>
               </div>
             </div>
@@ -248,7 +238,7 @@
       </div>
     </header>
 
-    <div class="formula-bar liquid-glass liquid-glass--light">
+    <div class="formula-bar panel">
       <div class="name-box" id="name-box" title="Active cell / range">A1</div>
       <div class="fx-label">ƒx</div>
       <input type="text" class="formula-input" id="formula-input" spellcheck="false" autocomplete="off" aria-label="Formula bar" placeholder="=SUM(A1:A10)  ·  AVERAGE  MIN  MAX  IF  ROUND  …"/>
@@ -265,9 +255,9 @@
           <input type="text" id="cell-editor" class="cell-editor hidden" spellcheck="false" autocomplete="off" aria-label="Cell editor"/>
         </div>
       </div>
-      <footer class="sheet-tabs liquid-glass liquid-glass--light">
+      <footer class="sheet-tabs panel">
         <button type="button" class="tab-icon pressable" id="add-sheet-btn" title="Add sheet" aria-label="Add sheet">
-          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          <span class="icon" aria-hidden="true">plus</span>
         </button>
         <div class="tabs-scroll" id="sheet-tabs" role="tablist"></div>
       </footer>
@@ -278,7 +268,7 @@
   <!-- Link dialog -->
   <div id="link-dialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="link-dialog-title">
     <div class="modal-backdrop" data-close="link"></div>
-    <div class="modal-card liquid-glass liquid-glass--heavy glass glass-heavy">
+    <div class="modal-card panel panel--floating">
       <h2 id="link-dialog-title" class="modal-title">Insert link</h2>
       <label class="field-label" for="link-text">Display text</label>
       <input type="text" id="link-text" class="field-input" placeholder="Text to show" autocomplete="off"/>
@@ -291,7 +281,6 @@
     </div>
   </div>
 
-  <script src="liquid-glass.js"></script>
-  <script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

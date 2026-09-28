@@ -1,11 +1,12 @@
 {
   "name": "xsheet",
   "version": "2.1.0",
-  "description": "XSheet — local-first spreadsheet with liquid glass UI and Rust backend",
+  "description": "XSheet — local-first spreadsheet with CruxOS UI and Rust backend",
   "author": "XSheet",
   "license": "MIT",
   "private": true,
   "scripts": {
+    "test": "node scripts/test-design.js",
     "backend": "cargo run --release",
     "backend:build": "cargo build --release",
     "start": "cargo run",

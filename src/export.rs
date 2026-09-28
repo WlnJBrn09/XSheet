@@ -90,7 +90,8 @@ fn sanitize_filename(s: &str) -> String {
     let t: String = s
         .chars()
         .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+            // Keep letters from every script; headers carry them via RFC 5987 `filename*`.
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
                 c
             } else {
                 '_'

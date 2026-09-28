@@ -1435,8 +1435,9 @@
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Export failed');
       const blob = await res.blob();
       const cd = res.headers.get('Content-Disposition') || '';
+      const star = cd.match(/filename\*=UTF-8''([^;]+)/i);
       const m = cd.match(/filename="([^"]+)"/);
-      const name = m ? m[1] : `${title}.${format}`;
+      const name = star ? decodeURIComponent(star[1]) : m ? m[1] : `${title}.${format}`;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = name;
@@ -1647,6 +1648,7 @@
 
   // Cell selection: single click = one cell; click+drag (button held) = range.
   // Hover alone never changes selection.
+  let lastCellDown = { t: 0, r: -1, c: -1 };
   gridCanvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     if (e.target.closest('a.cell-link')) return;
@@ -1657,7 +1659,11 @@
     const r = +cell.dataset.r;
     const c = +cell.dataset.c;
 
-    if (e.detail >= 2) {
+    // Detect double-click by timing: PointerEvent.detail is always 0 in Chromium, and
+    // pointerup re-renders the grid, so no click/dblclick event ever reaches the cell.
+    const isDouble = !e.shiftKey && e.timeStamp - lastCellDown.t < 500 && lastCellDown.r === r && lastCellDown.c === c;
+    lastCellDown = isDouble ? { t: 0, r: -1, c: -1 } : { t: e.timeStamp, r, c };
+    if (isDouble) {
       endDragSelect(dragPointerId);
       selectCell(r, c, { edit: true });
       return;
@@ -1849,6 +1855,8 @@
       forEachSelected((r, c) => setCell(r, c, '', { pushUndo: true }));
       renderGrid();
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // The editor is seeded with the key; stop the browser inserting it a second time.
+      e.preventDefault();
       startEdit(e.key);
     }
   });

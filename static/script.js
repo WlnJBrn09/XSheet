@@ -1347,7 +1347,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'doc-item' + (d.id === docId ? ' active' : '');
-        btn.innerHTML = `<span class="icon file-icon">grid-four</span><span class="file-meta"><span class="file-name"></span><span class="file-sub">Saved workbook</span></span>`;
+        btn.innerHTML = `<span class="ph ph-grid-four file-icon"></span><span class="file-meta"><span class="file-name"></span><span class="file-sub">Saved workbook</span></span>`;
         btn.querySelector('.file-name').textContent = d.title || 'Untitled';
         btn.addEventListener('click', () => openSavedDocument(d.id));
         docList.appendChild(btn);
@@ -1362,7 +1362,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'doc-item' + (f.path === activeFilePath ? ' active' : '');
-        btn.innerHTML = `<span class="icon file-icon">${iconForExt(f.ext)}</span><span class="file-meta"><span class="file-name"></span><span class="file-sub"></span></span>`;
+        btn.innerHTML = `<span class="ph ph-${iconForExt(f.ext)} file-icon"></span><span class="file-meta"><span class="file-name"></span><span class="file-sub"></span></span>`;
         btn.querySelector('.file-name').textContent = f.name;
         btn.querySelector('.file-sub').textContent = `${(f.ext || '').toUpperCase()} · ${formatSize(f.size || 0)}`;
         btn.addEventListener('click', () => openPath(f.path));

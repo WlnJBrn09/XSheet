@@ -237,7 +237,7 @@ button {
   height: 28px;
 }
 
-.icon-btn.sm .icon {
+.icon-btn.sm .ph {
   font-size: 18px;
 }
 
@@ -514,7 +514,7 @@ html[data-theme="dark"] #theme-toggle .icon-dark {
   color: var(--crux-selected-text);
 }
 
-.menu-option .icon {
+.menu-option .ph {
   font-size: 18px;
   opacity: 0.8;
 }
@@ -1057,7 +1057,7 @@ html[data-theme="dark"] #theme-toggle .icon-dark {
 
 /* primary glass-btn styles defined with .glass-btn above */
 
-.icon.sm {
+.ph.sm {
   font-size: 18px;
 }
 
@@ -1197,7 +1197,7 @@ html[data-theme="dark"] .sidebar-btn:hover {
   background: var(--hover);
 }
 
-.sidebar-btn .icon {
+.sidebar-btn .ph {
   font-size: 18px;
 }
 
